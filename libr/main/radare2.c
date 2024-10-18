@@ -85,7 +85,7 @@ static int r_main_version_verify(RCore *core, bool show, bool json) {
 			pj_ks (pj, "birth", R2_BIRTH);
 			pj_ks (pj, "commit", R2_GITTIP);
 			pj_ki (pj, "commits", R2_VERSION_COMMIT);
-			pj_ks (pj, "license", "LGPLv3");
+			pj_ks (pj, "license", "LGPL-3.0-only");
 			pj_ks (pj, "tap", R2_GITTAP);
 			pj_ko (pj, "semver");
 			pj_ki (pj, "major", R2_VERSION_MAJOR);
@@ -161,7 +161,12 @@ static int r_main_version_verify(RCore *core, bool show, bool json) {
 			json_plugins (core, pj, "debug", "Ldj");
 			json_plugins (core, pj, "egg", "Lgj");
 			json_plugins (core, pj, "fs", "Lmj");
-			json_plugins (core, pj, "parse", "Lpj");
+			json_plugins (core, pj, "io", "Loj");
+
+			// json_plugins (core, pj, "parse", "Lpj");
+			json_plugins (core, pj, "anal", "LAj");
+			// json_plugins (core, pj, "crypto", "LCj");
+			// json_plugins (core, pj, "lang", "Llj");
 		//	json_plugins (core, pj, "asm", "LAj"); // should be psuedo but its not listed
 		}
 		pj_end (pj);
@@ -879,7 +884,6 @@ R_API int r_main_radare2(int argc, const char **argv) {
 		case 'm':
 			r_config_set_i (r->config, "io.va", 1);
 			mr.mapaddr = r_num_math (r->num, opt.arg);
-			mr.s_seek = strdup (opt.arg);
 			break;
 		case 'M':
 			r_config_set_b (r->config, "bin.demangle", false);
@@ -1568,13 +1572,12 @@ R_API int r_main_radare2(int argc, const char **argv) {
 					}
 				}
 			}
-			if (mr.mapaddr) { // XXX use UT64_MAX?
-				if (r_config_get_b (r->config, "file.info")) {
-					R_LOG_WARN ("using oba to load the syminfo from different mapaddress");
-					// load symbols when using r2 -m 0x1000 /bin/ls
-					r_core_cmdf (r, "oba 0 0x%"PFMT64x, mr.mapaddr);
-					r_core_cmd0 (r, ".ies*");
-				}
+			// XXX use UT64_MAX?
+			if (mr.mapaddr && r_config_get_b (r->config, "file.info")) {
+				R_LOG_WARN ("using oba to load the syminfo from different mapaddress");
+				// load symbols when using r2 -m 0x1000 /bin/ls
+				r_core_cmdf (r, "oba 0 0x%"PFMT64x, mr.mapaddr);
+				r_core_cmd0 (r, ".ies*");
 			}
 		} else if (mr.pfile) {
 			RIODesc *f = r_core_file_open (r, mr.pfile, mr.perms, mr.mapaddr);
@@ -1692,6 +1695,9 @@ R_API int r_main_radare2(int argc, const char **argv) {
 			r_bin_file_set_hashes (r->bin, r_bin_file_compute_hashes (r->bin, limit));
 		}
 #endif
+		if (!mr.s_seek && mr.mapaddr && mr.mapaddr != r->offset) {
+			mr.s_seek = r_str_newf ("0x%08"PFMT64x, mr.mapaddr);
+		}
 		if (mr.s_seek) {
 			mr.seek = r_num_math (r->num, mr.s_seek);
 			if (mr.seek != UT64_MAX) {
